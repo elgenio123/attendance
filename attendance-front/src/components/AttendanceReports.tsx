@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Download, Search, Users, Clock, FileText } from 'lucide-react';
-import { format, subDays } from 'date-fns';
-import { classService } from '../services/classService';
+import { Calendar, Download, Search, Users, Clock, FileText, AlertCircle } from 'lucide-react';
+import { format, subDays, differenceInMinutes } from 'date-fns';
+import { attendanceService, AttendanceSession as BackendSession, AttendanceRecord } from '../services/attendanceService';
+import { useAuth } from '../contexts/AuthContext';
 
 interface AttendanceSession {
   id: string;
@@ -19,63 +20,76 @@ interface AttendanceSession {
 }
 
 export const AttendanceReports: React.FC = () => {
+  const { user } = useAuth();
   const [sessions, setSessions] = useState<AttendanceSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<AttendanceSession | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('week');
-  const [classNames, setClassNames] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const loadClassNames = async () => {
-        const classesData = await classService.getAll();
-        const data = Array.isArray(classesData) ? classesData : (classesData?.data ?? []);
-        console.log(data[0])
-        const l = Array<string>()
-        for (let i = 0; i < data.length; i++){
-            l.push(data[i]?.subject)
-        }
-        console.log(l)
-        setClassNames(l)
-      };
+  // Transform backend session to frontend format
+  const transformSession = (backendSession: BackendSession): AttendanceSession => {
+    const startedAt = new Date(backendSession.started_at);
+    const endedAt = backendSession.ended_at ? new Date(backendSession.ended_at) : new Date();
+    const duration = differenceInMinutes(endedAt, startedAt);
     
-  // Mock data generation
-  useEffect(() => {
-    loadClassNames()
-    const mockSessions: AttendanceSession[] = [];
+    // Get attendance records for this session
+    const records = backendSession.attendanceRecords || [];
+    const studentsPresent = records.length;
+    const totalStudents = backendSession.school_class?.total_students || 0;
     
-    const studentNames = [
-      'Alice Johnson', 'Bob Smith', 'Carol Davis', 'David Wilson', 'Eva Brown',
-      'Frank Miller', 'Grace Lee', 'Henry Taylor', 'Ivy Chen', 'Jack Robinson'
-    ];
+    // Transform records to students array
+    const students = records.map((record: AttendanceRecord) => ({
+      id: record.id.toString(),
+      name: record.student?.name || 'Unknown',
+      registrationNumber: record.student?.registration_number || '',
+      timestamp: new Date(record.marked_at)
+    }));
 
-    for (let i = 0; i < 15; i++) {
-      const date = subDays(new Date(), i);
-      const className = classNames[Math.floor(Math.random() * classNames.length)];
-      const studentsPresent = Math.floor(Math.random() * 8) + 3; // 3-10 students
-      const totalStudents = 10;
+    return {
+      id: backendSession.id.toString(),
+      date: startedAt,
+      className: backendSession.school_class?.subject || backendSession.school_class?.name || 'Unknown Class',
+      duration: duration > 0 ? duration : 0,
+      studentsPresent,
+      totalStudents,
+      students
+    };
+  };
 
-      const students = [];
-      for (let j = 0; j < studentsPresent; j++) {
-        students.push({
-          id: `${i}-${j}`,
-          name: studentNames[j],
-          registrationNumber: `STU00${j + 1}`,
-          timestamp: new Date(date.getTime() + Math.random() * 3600000) // Random time during class
-        });
-      }
-
-      mockSessions.push({
-        id: `session_${i}`,
-        date,
-        className,
-        duration: 50 + Math.floor(Math.random() * 40), // 50-90 minutes
-        studentsPresent,
-        totalStudents,
-        students
-      });
+  // Load sessions from API
+  const loadSessions = async () => {
+    if (!user || user.user_type !== 'teacher') {
+      setError('Only teachers can view attendance reports');
+      return;
     }
 
-    setSessions(mockSessions);
-  }, []);
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const backendSessions = await attendanceService.getSessions(undefined, user.id);
+      const sessionsArray = Array.isArray(backendSessions) ? backendSessions : [];
+      
+      // Transform all sessions
+      const transformedSessions = sessionsArray.map(transformSession);
+      
+      setSessions(transformedSessions);
+    } catch (err: any) {
+      console.error('Error loading sessions:', err);
+      setError(err.response?.data?.message || err.message || 'Failed to load attendance sessions');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user && user.user_type === 'teacher') {
+      loadSessions();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const filteredSessions = sessions.filter(session => {
     const matchesSearch = session?.className?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -156,10 +170,18 @@ export const AttendanceReports: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Attendance Reports</h1>
             <p className="text-gray-600">View and export attendance records</p>
           </div>
-          <div className="mt-4 sm:mt-0">
+          <div className="mt-4 sm:mt-0 flex items-center space-x-3">
+            <button
+              onClick={loadSessions}
+              disabled={loading}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50"
+            >
+              {loading ? 'Loading...' : 'Refresh'}
+            </button>
             <button
               onClick={exportAllCSV}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200"
+              disabled={filteredSessions.length === 0}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50"
             >
               <Download className="h-4 w-4 mr-2" />
               Export All
@@ -167,6 +189,13 @@ export const AttendanceReports: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
+          <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
+          <p className="text-red-800">{error}</p>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow mb-8 p-6">
@@ -218,7 +247,11 @@ export const AttendanceReports: React.FC = () => {
           </div>
           
           <div className="max-h-96 overflow-y-auto">
-            {filteredSessions.length === 0 ? (
+            {loading ? (
+              <div className="p-8 text-center">
+                <p className="text-gray-600">Loading sessions...</p>
+              </div>
+            ) : filteredSessions.length === 0 ? (
               <div className="p-8 text-center">
                 <FileText className="h-12 w-12 text-gray-400 mx-auto mb-3" />
                 <p className="text-gray-600">No sessions found</p>

@@ -14,11 +14,13 @@ export interface AttendanceSession {
     id: number;
     name: string;
     subject: string;
+    total_students?: number;
   };
   teacher?: {
     id: number;
     name: string;
   };
+  attendanceRecords?: AttendanceRecord[];
   created_at: string;
   updated_at: string;
 }
@@ -59,15 +61,17 @@ export interface SessionStats {
 
 export const attendanceService = {
   // Session management
-  async getSessions(classId?: number): Promise<AttendanceSession[]> {
-    const params = classId ? { class_id: classId } : {};
+  async getSessions(classId?: number, teacherId?: number): Promise<AttendanceSession[]> {
+    const params: any = {};
+    if (classId) params.class_id = classId;
+    if (teacherId) params.teacher_id = teacherId;
     const response = await api.get('/attendance-sessions', { params });
-    return response.data;
+    return response.data.data || response.data;
   },
 
   async getSessionById(id: number): Promise<AttendanceSession> {
     const response = await api.get(`/attendance-sessions/${id}`);
-    return response.data;
+    return response.data.data || response.data;
   },
 
   async createSession(sessionData: CreateSessionRequest): Promise<AttendanceSession> {
@@ -88,7 +92,7 @@ export const attendanceService = {
     if (studentId) params.student_id = studentId;
     
     const response = await api.get('/attendance-records', { params });
-    return response.data;
+    return response.data.data || response.data;
   },
 
   async markAttendance(recordData: CreateAttendanceRecordRequest): Promise<AttendanceRecord> {
@@ -98,7 +102,7 @@ export const attendanceService = {
 
   async getSessionStats(sessionId: number): Promise<SessionStats> {
     const response = await api.get(`/attendance-records/session/${sessionId}/stats`);
-    return response.data;
+    return response.data.data?.statistics || response.data.statistics || response.data;
   },
 
   // QR Code management
