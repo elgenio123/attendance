@@ -101,8 +101,8 @@ export const Login: React.FC = () => {
             <div className="mt-6 bg-gray-50 rounded-lg p-4">
               <p className="text-xs text-gray-600 text-center mb-2 font-medium">Demo Credentials:</p>
               <div className="space-y-1 text-xs text-gray-500">
-                <p><strong>Teacher:</strong> ddouglas@example.org / password</p>
-                <p><strong>Student:</strong> wschoen@example.com/ password</p>
+                <p><strong>Teacher:</strong> testteacher@example.com </p>
+                <p><strong>Student:</strong> teststudent@example.com</p>
               </div>
             </div>
           </form>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Download, Search, Users, Clock, FileText } from 'lucide-react';
 import { format, subDays } from 'date-fns';
+import { classService } from '../services/classService';
 
 interface AttendanceSession {
   id: string;
@@ -22,11 +23,25 @@ export const AttendanceReports: React.FC = () => {
   const [selectedSession, setSelectedSession] = useState<AttendanceSession | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState('week');
+  const [classNames, setClassNames] = useState([]);
 
+  const loadClassNames = async () => {
+        const classesData = await classService.getAll();
+        const data = Array.isArray(classesData) ? classesData : (classesData?.data ?? []);
+        console.log(data[0])
+        const l = Array<string>()
+        for (let i = 0; i < data.length; i++){
+            l.push(data[i]?.subject)
+        }
+        console.log(l)
+        setClassNames(l)
+      };
+    
   // Mock data generation
   useEffect(() => {
+    loadClassNames()
     const mockSessions: AttendanceSession[] = [];
-    const classNames = ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'English'];
+    
     const studentNames = [
       'Alice Johnson', 'Bob Smith', 'Carol Davis', 'David Wilson', 'Eva Brown',
       'Frank Miller', 'Grace Lee', 'Henry Taylor', 'Ivy Chen', 'Jack Robinson'
@@ -63,7 +78,7 @@ export const AttendanceReports: React.FC = () => {
   }, []);
 
   const filteredSessions = sessions.filter(session => {
-    const matchesSearch = session.className.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = session?.className?.toLowerCase().includes(searchQuery.toLowerCase());
     
     const now = new Date();
     let withinDateRange = true;

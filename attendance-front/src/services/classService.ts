@@ -16,6 +16,7 @@ export interface Class {
 }
 
 export interface CreateClassRequest {
+  teacher_id: number,
   name: string;
   subject: string;
   total_students: number;
@@ -39,6 +40,7 @@ export const classService = {
   },
 
   async create(classData: CreateClassRequest): Promise<Class> {
+    console.log("In class service",classData)
     const response = await api.post('/classes', classData);
     return response.data;
   },

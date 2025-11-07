@@ -5,7 +5,7 @@ import { Play, Square, Users, Clock, Download, Plus, BookOpen, Settings, BarChar
 import { format } from 'date-fns';
 import { classService, Class } from '../services/classService';
 import { attendanceService, AttendanceSession, AttendanceRecord } from '../services/attendanceService';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth, User } from '../contexts/AuthContext';
 
 type DashboardView = 'overview' | 'reports' | 'classes';
 
@@ -69,10 +69,12 @@ export const TeacherDashboard: React.FC = () => {
     }
   };
 
-  const createClass = async (className: string, subject: string, totalStudents: number) => {
+  const createClass = async (teacher_id: number, className: string, subject: string, totalStudents: number) => {
     try {
       setLoading(true);
+      console.log("In create class",teacher_id)
       const newClass = await classService.create({
+        teacher_id: teacher_id,
         name: className,
         subject,
         total_students: totalStudents
@@ -417,6 +419,7 @@ export const TeacherDashboard: React.FC = () => {
           e.preventDefault();
           const formData = new FormData(e.target as HTMLFormElement);
           createClass(
+            user?.id as number,
             formData.get('className') as string,
             formData.get('subject') as string,
             parseInt(formData.get('totalStudents') as string)

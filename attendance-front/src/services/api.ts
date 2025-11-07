@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // API base URL - adjust this to match your Laravel backend
-const API_BASE_URL = 'https://attendance-jkbm.onrender.com/api';
+const API_BASE_URL = 'http://localhost:8000/api';
 
 // Create axios instance
 const api = axios.create({
