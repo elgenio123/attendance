@@ -11,4 +11,5 @@ php artisan route:cache
 echo "Caching views..."
 php artisan view:cache
 echo "Running migrations..."
-php artisan migrate:fresh --seed --force
+php artisan migrate:reset
+php artisan migrate:fresh --force --seed
