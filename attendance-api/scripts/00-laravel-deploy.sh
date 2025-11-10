@@ -4,6 +4,10 @@ a2disconf php8.1-fpm
 echo "Running composer"
 composer global require hirak/prestissimo
 composer install --no-dev --working-dir=/var/www/html
+echo "Clearing caches..."
+php artisan config:clear
+php artisan cache:clear
+php artisan view:clear
 echo "Caching config..."
 php artisan config:cache
 echo "Caching routes..."
